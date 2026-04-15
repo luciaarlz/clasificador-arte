@@ -4,126 +4,83 @@ import torch.nn as nn
 from torchvision import models, transforms
 from PIL import Image
 import pandas as pd
-import io
 
 # ==========================================
-# 1. Configuración Estética (El "Look & Feel")
+# 1. CONFIGURACIÓN ESTÉTICA "ART GALLERY"
 # ==========================================
-st.set_page_config(
-    page_title="Art AI - Clasificador", 
-    page_icon="🎨", 
-    layout="centered"
-)
+st.set_page_config(page_title="ArtVision AI", page_icon="🎭", layout="centered")
 
-# Estilos CSS personalizados para imitar el diseño
-# - Fondo oscuro
-# - Contenedor punteado para la imagen
-# - Botones redondeados y personalizados
 st.markdown("""
     <style>
-    /* Fondo principal de la App */
+    /* Fondo degradado estilo galería moderna */
     .stApp {
-        background-color: #1a223a;
+        background: radial-gradient(circle, #1e1e26 0%, #111116 100%);
+        color: #f0f0f0;
+    }
+    
+    /* Contenedor del "Marco" del cuadro */
+    .art-frame {
+        border: 1px solid #3d3d4d;
+        border-radius: 20px;
+        padding: 40px;
+        background-color: rgba(255, 255, 255, 0.02);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        text-align: center;
+        margin-bottom: 25px;
+    }
+
+    /* Títulos elegantes en serif */
+    h1 {
+        font-family: 'serif';
+        font-weight: 700;
+        letter-spacing: 3px;
+        background: -webkit-linear-gradient(#ffffff, #777);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-align: center;
+    }
+
+    /* Estilo para los botones */
+    .stButton>button {
+        border-radius: 12px;
+        border: 1px solid #4a4a5a;
+        background-color: transparent;
         color: #e0e0e0;
-    }
-    
-    /* Centrar contenido principal */
-    .block-container {
-        padding-top: 2rem;
-        max-width: 600px;
-    }
-
-    /* Subtítulo central */
-    .subtitle {
-        text-align: center;
-        color: #a0a0a0;
-        font-size: 0.9rem;
-        margin-top: -10px;
-        margin-bottom: 20px;
-    }
-
-    /* Zona de previsualización de imagen punteada */
-    .image-container {
-        border: 2px dashed #404a6e;
-        border-radius: 15px;
-        padding: 20px;
-        text-align: center;
-        background-color: rgba(255,255,255,0.03);
-        margin-bottom: 20px;
-        min-height: 300px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-    }
-
-    /* Texto de instrucción dentro de la zona punteada */
-    .image-placeholder-text {
-        color: #a0a0a0;
-        font-size: 0.9rem;
-    }
-
-    /* Estilos para los botones (Cámara y Galería) */
-    .stButton > button {
-        border-radius: 10px;
-        height: 3em;
-        font-weight: bold;
-        transition: all 0.2s ease;
-        border: none;
-    }
-
-    /* Botón de Cámara (Morado) */
-    div[data-testid="column"] button:first-child {
-        background-color: #7d3c98;
-        color: white;
-    }
-    div[data-testid="column"] button:first-child:hover {
-        background-color: #8e44ad;
-    }
-
-    /* Botón de Galería (Azul) */
-    div[data-testid="column"]:nth-child(2) button:first-child {
-        background-color: #34495e;
-        color: white;
-    }
-    div[data-testid="column"]:nth-child(2) button:first-child:hover {
-        background-color: #405a74;
-    }
-
-    /* Botón de Analizar (Lila) */
-    div[data-testid="stFormSubmitButton"] button {
-        background-color: #a569bd;
-        color: white;
-        margin-top: 15px;
         width: 100%;
-    }
-    div[data-testid="stFormSubmitButton"] button:hover {
-        background-color: #b97fcf;
-    }
-
-    /* Ocultar el uploader por defecto de Streamlit */
-    div[data-testid="stFileUploader"] {
-        display: none;
-    }
-    
-    /* Ocultar la cámara por defecto de Streamlit */
-    div[data-testid="stCameraInput"] {
-        display: none;
+        height: 3.5em;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        font-size: 13px;
+        letter-spacing: 1px;
     }
 
+    .stButton>button:hover {
+        background-color: #ffffff;
+        color: #000000;
+        border-color: #ffffff;
+        transform: translateY(-2px);
+    }
+
+    /* Botón de Analizar Destacado */
+    .analyze-btn button {
+        background: linear-gradient(45deg, #6a11cb 0%, #2575fc 100%) !important;
+        border: none !important;
+        color: white !important;
+        font-weight: bold !important;
+        margin-top: 20px;
+    }
+
+    /* Ajustes para inputs nativos */
+    .stCameraInput { margin-top: 20px; }
     </style>
 """, unsafe_allow_html=True)
 
-# Título Principal (模仿 imagen de referencia)
-st.markdown('<h1 style="text-align: center; color: white;">🎨 Art AI</h1>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">Clasificador de Estilos Artísticos · 100% en dispositivo · sin internet</p>', unsafe_allow_html=True)
-
-
 # ==========================================
-# 2. Carga y Lógica del Modelo
+# 2. LÓGICA DEL MODELO (PYTORCH)
 # ==========================================
 @st.cache_resource
 def load_model():
+    # Definir arquitectura idéntica al entrenamiento
     model = models.resnet18(weights=None)
     in_features = model.fc.in_features
     model.fc = nn.Sequential(
@@ -131,10 +88,13 @@ def load_model():
         nn.Linear(in_features, 256),
         nn.ReLU(),
         nn.Dropout(p=0.3),
-        nn.Linear(256, 5),
+        nn.Linear(256, 5), # 5 clases artísticas
     )
-    # Reemplaza con la ruta real de tu modelo
-    model.load_state_dict(torch.load('best_model_ResNet18.pth', map_location=torch.device('cpu')))
+    # Cargar pesos (asegúrate de que el archivo esté en GitHub)
+    try:
+        model.load_state_dict(torch.load('best_model_ResNet18.pth', map_location=torch.device('cpu')))
+    except FileNotFoundError:
+        st.error("⚠️ No se encontró el archivo 'best_model_ResNet18.pth'. Por favor súbelo a GitHub.")
     model.eval()
     return model
 
@@ -143,9 +103,9 @@ class_names = ['Abstract Expressionism', 'Cubism', 'Expressionism', 'Impressioni
 
 definitions = {
     'Abstract Expressionism': 'Enfoque en formas y colores más que en objetos reales. ¡Pura emoción!',
-    'Cubism': 'Uso de formas geométricas para ver objetos desde muchos ángulos a la vez. (Piensa en Picasso).',
+    'Cubism': 'Uso de formas geométricas para ver objetos desde muchos ángulos a la vez (Estilo Picasso).',
     'Expressionism': 'Busca expresar sentimientos intensos, a menudo con colores irreales y formas distorsionadas.',
-    'Impressionism': 'Captura la luz y el movimiento del momento con pinceladas cortas y visibles.',
+    'Impressionism': 'Captura la luz y el movimiento del momento con pinceladas cortas y visibles (Estilo Monet).',
     'Symbolism': 'Uso de imágenes metafóricas para representar ideas, sueños o estados de ánimo.'
 }
 
@@ -159,112 +119,65 @@ def predict(image):
     with torch.no_grad():
         outputs = model(image)
         prob = torch.nn.functional.softmax(outputs[0], dim=0)
-    return prob
+        confidence, index = torch.max(prob, 0)
+    return class_names[index], confidence.item(), prob
 
 # ==========================================
-# 3. Interfaz de Usuario (El Diseño Nuevo)
+# 3. INTERFAZ DE USUARIO
 # ==========================================
+st.markdown("<h1>ARTVISION AI</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #888; margin-bottom: 30px;'>Curador Digital de Estilos Artísticos</p>", unsafe_allow_html=True)
 
-# Zona de previsualización (el rectángulo punteado)
-# -----------------------------------------------
+# Marcador de posición para el marco del cuadro
 image_placeholder = st.empty()
 
-# Mensaje inicial si no hay imagen
-# Usamos HTML para que tenga el estilo punteado
+# Si no hay imagen, mostramos el marco vacío con diseño artístico
 image_placeholder.markdown("""
-    <div class="image-container">
-        <p class="image-placeholder-text">Suba una obra o tome una foto para identificar su estilo.</p>
+    <div class="art-frame">
+        <div style="font-size: 60px; margin-bottom: 20px;">🖼️</div>
+        <p style="color: #888; font-style: italic; font-size: 1.1rem;">"El arte no reproduce lo visible, sino que lo hace visible"</p>
+        <p style="font-size: 0.8rem; color: #555; text-transform: uppercase; letter-spacing: 1px;">Sube una obra o captura una foto</p>
     </div>
 """, unsafe_allow_html=True)
 
-# Botones de entrada (imitando a la imagen de referencia)
-# --------------------------------------------------------
+# Botones de selección
 col1, col2 = st.columns(2)
-
-# Elementos invisibles para capturar la entrada
-# (Están ocultos por CSS, se activan con código JavaScript/Streamlit)
-uploaded_file_invisible = st.file_uploader("", type=["jpg", "jpeg", "png"], key="invisible_uploader")
-camera_photo_invisible = st.camera_input("", key="invisible_camera")
-
-img_source = None
-
-# Botones visibles
-# ---------------
 with col1:
-    # El botón "Cámara" activa la entrada de la cámara
-    if st.button("📷 Cámara"):
-        # JavaScript para hacer clic en el input de la cámara (este es el "truco")
-        st.markdown("""
-            <script>
-                // Encontrar el input de la cámara y hacerle clic
-                const cameraInput = window.parent.document.querySelectorAll('input[type="file"][accept*="image/*"]')[1];
-                if (cameraInput) {
-                    cameraInput.click();
-                }
-            </script>
-        """, unsafe_allow_html=True)
+    img_file = st.file_uploader("🖼️ GALERÍA", type=["jpg", "png", "jpeg"], label_visibility="collapsed")
+    st.markdown("<p style='text-align:center; font-size:12px; color:#666;'>GALERÍA</p>", unsafe_allow_html=True)
 
 with col2:
-    # El botón "Galería" activa el uploader de archivos
-    if st.button("🖼️ Galería"):
-        # JavaScript para hacer clic en el uploader (este es el "truco")
-        st.markdown("""
-            <script>
-                // Encontrar el uploader de archivos y hacerle clic
-                const fileUploaderInput = window.parent.document.querySelector('input[type="file"][accept*="image/*"]');
-                if (fileUploaderInput) {
-                    fileUploaderInput.click();
-                }
-            </script>
-        """, unsafe_allow_html=True)
+    cam_file = st.camera_input("📷 CÁMARA", label_visibility="collapsed")
+    st.markdown("<p style='text-align:center; font-size:12px; color:#666;'>CÁMARA</p>", unsafe_allow_html=True)
 
+# Lógica principal de ejecución
+final_img = img_file if img_file else cam_file
 
-# Lógica para mostrar la imagen seleccionada y habilitar el análisis
-# ------------------------------------------------------------------
-# Revisamos si hay entrada de la cámara o de la galería
-image_to_analyze = None
-
-if camera_photo_invisible:
-    image_to_analyze = camera_photo_invisible
-elif uploaded_file_invisible:
-    image_to_analyze = uploaded_file_invisible
-
-# Si hay una imagen, la mostramos en lugar del rectángulo punteado
-if image_to_analyze:
-    pil_image = Image.open(image_to_analyze).convert('RGB')
+if final_img:
+    image = Image.open(final_img).convert('RGB')
+    # Colocamos la imagen en el marco (usando width='stretch' para 2026)
+    image_placeholder.image(image, width='stretch')
     
-    # Reemplazamos el marcador punteado con la imagen real
-    image_placeholder.markdown("""
-        <div class="image-container">
-            <p class="image-placeholder-text">Cargando...</p>
-        </div>
-    """, unsafe_allow_html=True) # Un pequeño estado de carga
-    
-    # Mostrar la imagen
-    image_placeholder.image(pil_image, caption='Obra a analizar', use_container_width=True)
-    
-    # Habilitar el botón de analizar
-    if st.button("⚡ Analizar estilo"):
-        # -- Lógica de predicción --
-        with st.spinner('Analizando...'):
-            probs = predict(pil_image)
-            top_prob, top_idx = torch.max(probs, 0)
+    # Botón de análisis
+    st.markdown("<div class='analyze-btn'>", unsafe_allow_html=True)
+    if st.button("✨ IDENTIFICAR ESTILO"):
+        with st.spinner('Analizando pinceladas...'):
+            label, acc, all_probs = predict(image)
             
-            # -- Mostrar Resultados --
             st.divider()
             
-            # Resultado principal
-            st.subheader(f"Estilo principal: **{class_names[top_idx]}**")
-            st.write(f"Confianza: **{top_prob:.2%}**")
-            st.info(definitions.get(class_names[top_idx], "Estilo artístico fascinante."))
+            # Resultado Principal
+            st.markdown(f"### Estilo detectado: <span style='color:#a569bd'>{label}</span>", unsafe_allow_html=True)
+            st.write(f"**Confianza:** {acc:.2%}")
+            st.info(definitions.get(label, "Un estilo fascinante."))
 
-            # Otros estilos
-            st.write("### Probabilidades por estilo:")
-            # Creamos un DataFrame para la tabla y gráfico
+            # Gráfico de todas las probabilidades
+            st.write("#### Probabilidades por categoría:")
             chart_data = pd.DataFrame({
                 'Estilo': class_names,
-                'Probabilidad': [float(p) for p in probs]
+                'Probabilidad': [float(p) for p in all_probs]
             }).sort_values(by='Probabilidad', ascending=False)
             
-            # Gráfico de barras
-            st.bar_chart(chart_data.set_index('Estilo'), use_container_width=True)
+            st.bar_chart(chart_data.set_index('Estilo'), width='stretch')
+            
+    st.markdown("</div>", unsafe_allow_html=True)
